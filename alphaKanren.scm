@@ -12,6 +12,8 @@
 ;;
 ;; Revised:  16 January 2014
 ;; tie and hash now require their first arguments be ground noms.
+#!r6rs
+(import (rnrs))
 
 (define-syntax pmatch
   (syntax-rules (else guard)
