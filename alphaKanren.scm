@@ -519,3 +519,26 @@
       ((null? s) '())
       ((memq (car s) (cdr s)) (remove-duplicates (cdr s)))
       (else (cons (car s) (remove-duplicates (cdr s)))))))
+
+;; add definition from 3.1 Non-naive Substitution
+
+(define substo
+  (lambda (e new a out)
+    (conde
+     ((== `(var ,a) e) (== new out))
+     ((exist (y)
+              (== `(var ,y) e)
+              (== `(var ,y) out)
+              (hash a y)))
+     ((exist (rator ratorres rand randres)
+             (== `(app ,rator ,rand) e)
+             (== `(app ,ratorres ,randres) out)
+             (substo rator new a ratorres)
+             (substo rand new a randres)))
+     ((exist (body bodyres)
+             (fresh (c)
+                    (== `(lam ,(tie c body)) e)
+                    (== `(lam ,(tie c bodyres)) out)
+                    (hash c a)
+                    (hash c new)
+                    (substo body new a bodyres)))))))
