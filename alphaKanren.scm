@@ -542,3 +542,35 @@
                     (hash c a)
                     (hash c new)
                     (substo body new a bodyres)))))))
+
+;; add definition from 3.2 Type Inferencer for Simply Typed λ-calculus
+
+(define typo
+  (lambda (g e te)
+    (conde
+     ((exist (x)
+             (== `(var ,x) e)
+             (lookupo x te g)))
+     ((exist (rator trator rand trand)
+             (== `(app ,rator ,rand) e)
+             (== `(→ ,trand ,te) trator)
+             (typo g rator trator)
+             (typo g rand trand)))
+     ((exist (e^ te^ trand g^)
+             (fresh (b)
+                    (== `(lam ,(tie b e^)) e)
+                    (== `(→ ,trand ,te^) te)
+                    (hash b g)
+                    (== `((,b . ,trand) . ,g) g^)
+                    (typo g^ e^ te^)))))))
+
+(define lookupo
+  (lambda (x tx g)
+    (exist (a d)
+           (== `(,a . ,d) g)
+           (conde
+            ((== `(,x . ,tx) a))
+            ((exist (x^ tx^)
+                    (== `(,x^ . ,tx^) a)
+                    (hash x x^)
+                    (lookupo x tx d)))))))
