@@ -1,5 +1,5 @@
 ;; Complete, revised implementation of alphaKanren, an embedding of nominal
-;; logic programming in R5RS-compliant Scheme.  
+;; logic programming in R5RS-compliant Scheme.
 ;;
 ;; This implementation is from the revised version of:
 ;;
@@ -24,7 +24,7 @@
     ((_ v (else e0 e ...)) (begin e0 e ...))
     ((_ v (pat (guard g ...) e0 e ...) cs ...)
      (let ((fk (lambda () (pmatch v cs ...))))
-       (ppat v pat 
+       (ppat v pat
          (if (and g ...) (begin e0 e ...) (fk))
          (fk))))
     ((_ v (pat e0 e ...) cs ...)
@@ -54,7 +54,7 @@
   (lambda (x)
     (pmatch x
       ((nom-tag ?) #t)
-      (else #f))))
+      (else #t))))
 
 (define-syntax tie
   (syntax-rules ()
@@ -104,7 +104,7 @@
   (lambda (x)
     (not (memv x '(tie-tag nom-tag susp-tag)))))
 
-(define sigma-rules  
+(define sigma-rules
   (lambda (eqn eqns)
     (pmatch eqn
       ((,c . ,c^)
@@ -122,7 +122,7 @@
         `(,eqns ,empty-sigma ,empty-delta))
        (((susp-tag ,pi ,x) . (susp-tag ,pi^ ,x^))
         (guard (eq? (x) (x^)))
-        (let ((delta (map (lambda (a) `(,a . ,(x))) 
+        (let ((delta (map (lambda (a) `(,a . ,(x)))
                              (disagreement-set pi pi^))))
           `(,eqns ,empty-sigma ,delta)))
        (((susp-tag ,pi ,x) . ,t)
@@ -142,7 +142,7 @@
   (lambda (pi v)
     (pmatch v
       (,c (guard (not (pair? c))) c)
-      ((tie-tag ,a ,t) (tie (apply-pi pi a) (apply-pi pi t)))      
+      ((tie-tag ,a ,t) (tie (apply-pi pi a) (apply-pi pi t)))
       ((nom-tag ?)
        (let loop ((v v) (pi pi))
          (if (null? pi) v (apply-swap (car pi) (loop v (cdr pi))))))
@@ -193,7 +193,7 @@
   (lambda (x v)
     (pmatch v
       (,c (guard (not (pair? c))) #f)
-      ((tie-tag ? ,t) (occurs-check x t))      
+      ((tie-tag ? ,t) (occurs-check x t))
       ((nom-tag ?) #f)
       ((susp-tag ? ,x^) (eq? (x^) x))
       ((,x^ . ,y^) (or (occurs-check x x^) (occurs-check x y^)))
@@ -212,7 +212,7 @@
   (lambda (sigma v)
     (pmatch v
       (,c (guard (not (pair? c))) c)
-      ((tie-tag ,a ,t) (tie a (apply-subst sigma t)))      
+      ((tie-tag ,a ,t) (tie a (apply-subst sigma t)))
       ((nom-tag ?) v)
       ((susp-tag ,pi ,x) (apply-pi pi (get (x) sigma)))
       ((,x . ,y) `(,(apply-subst sigma x) . ,(apply-subst sigma y))))))
@@ -229,7 +229,7 @@
   (lambda (v v*)
     (pmatch v*
       (() #f)
-      ((,v^ . ,v*) 
+      ((,v^ . ,v*)
        (or (term-equal? v^ v) (term-member? v v*))))))
 
 (define term-equal?
@@ -250,7 +250,7 @@
   (syntax-rules ()
     ((_ a f) (cons a f))))
 
-(define-syntax inc 
+(define-syntax inc
   (syntax-rules ()
     ((_ e) (lambdaf@ () e))))
 
@@ -260,8 +260,8 @@
      (pmatch a-inf
        (#f e0)
        (,f^ (guard (procedure? f^)) e1)
-       (,a^ (guard (not 
-                     (and (pair? a^) 
+       (,a^ (guard (not
+                     (and (pair? a^)
                           (procedure? (cdr a^)))))
             e2)
        ((,a . ,f) e3)))))
@@ -276,14 +276,14 @@
   (syntax-rules ()
     ((_ n (x) g0 g ...)
      (take n (lambdaf@ ()
-               ((exist (x) g0 g ... 
+               ((exist (x) g0 g ...
                   (lambdag@ (p)
                     (cons (reify x p) '())))
                 `(,empty-sigma ,empty-nabla)))))))
 
 (define take
   (lambda (n f)
-    (if (and n (zero? n)) 
+    (if (and n (zero? n))
       '()
       (case-inf (f)
         (() '())
@@ -325,6 +325,7 @@
          (let ((x (var)) ...)
            (bind* (g0 p) g ...)))))))
 
+
 (define-syntax fresh
   (syntax-rules ()
     ((_ (a ...) g0 g ...)
@@ -364,7 +365,7 @@
   (syntax-rules ()
     ((_ (g0 g ...) (g1 g^ ...) ...)
      (lambdag@ (p)
-       (inc 
+       (inc
          (mplus* (bind* (g0 p) g ...)
                  (bind* (g1 p) g^ ...)
                  ...))))))
@@ -411,7 +412,7 @@
          ((a f) (bind* a g ...)))))))
 
 (define-syntax project
-  (syntax-rules ()                       
+  (syntax-rules ()
     ((_ (x ...) g0 g ...)
      (lambdag@ (p)
        (mv-let ((sigma nabla) p)
@@ -436,11 +437,11 @@
   (lambda (v s)
     (pmatch v
       (,c (guard (not (pair? c))) c)
-      ((tie-tag ,a ,t) 
+      ((tie-tag ,a ,t)
        `(tie-tag ,(get a s) ,(apply-reify-s t s)))
       ((nom-tag ?) (get v s))
       ((susp-tag () ?) (get v s))
-      ((susp-tag ,pi ,x) 
+      ((susp-tag ,pi ,x)
        `(susp-tag
           ,(map (lambda (swap)
                   (pmatch swap
@@ -489,7 +490,7 @@
       (let ((c* (memv #\. str*)))
         (let ((rn (string->number (list->string (cdr c*)))))
 	  (let ((n-str (number->string (+ rn 1))))
-	    (string->symbol 
+	    (string->symbol
 	      (string-append
 		(string (car str*)) "." n-str))))))))
 
@@ -549,6 +550,9 @@
   (lambda (g e te)
     (conde
      ((exist (x)
+             (== `(intc ,x) e)
+             (== te 'int)))
+     ((exist (x)
              (== `(var ,x) e)
              (lookupo x te g)))
      ((exist (rator trator rand trand)
@@ -565,12 +569,336 @@
                     (typo g^ e^ te^)))))))
 
 (define lookupo
-  (lambda (x tx g)
+  (lambda (x tx t-env)
     (exist (a d)
-           (== `(,a . ,d) g)
+           (== `(,a . ,d) t-env)
            (conde
             ((== `(,x . ,tx) a))
             ((exist (x^ tx^)
                     (== `(,x^ . ,tx^) a)
                     (hash x x^)
                     (lookupo x tx d)))))))
+
+(define lookupo2
+  (lambda (x xt t-env)
+    (exist (y v rest)
+           (== `((,y . ,v) . ,rest) t-env)
+           (conde
+            ((== y x) (== v xt))
+            ((lookupo2 x xt rest))))))
+
+(define lookupo3
+  (lambda (x env t)
+    (exist (y v rest)
+           (== `((,y . ,v) . ,rest) env)
+           (conde
+            ((== '() env) fail)
+            ((== y x) (== v t))
+            ((lookupo3 x rest t))))))
+
+;; Type inferencer
+
+(define !-
+  (lambda (exp t-env t-val)
+    (conde
+     ((exist (n)
+             (== `(int-exp ,n) exp)
+             (== 'int t-val)))
+     ((exist (n)
+             (conde
+              ((== #t exp))
+              ((== #f exp)))
+             (== 'bool t-val)))
+     ((exist (n)
+             (== `(list ,n) exp)
+             (== 'list t-val)))
+     ((exist (x y body exp^ t-y trand)
+             (fresh (a)
+                    (== exp `(let (,x . ,y) ,(tie a body)))
+                    (!- `((lambda ,(tie a body)) ,y) t-env t-val))))
+     ((exist (x)
+             (== #t (or (var? exp) (nom? exp)))
+             (lookupo2 exp t-val t-env)))
+     ((exist (e1 e2 e3)
+             (== `(if ,e1 ,e2 ,e3) exp)
+             (!- e1 t-env 'bool)
+             (!- e2 t-env t-val)
+             (!- e3 t-env t-val)))
+     ((exist (body trand tbody)
+             (fresh (a)
+                    (== `(lambda ,(tie a body)) exp)
+                    (== `(-> ,trand ,tbody) t-val)
+                    (!- body `((,a . ,trand) . ,t-env) tbody))))
+     ((exist (rator rand trand)
+             (== `(,rator ,rand) exp)
+             (!- rator t-env `(-> ,trand ,t-val))
+             (!- rand t-env trand))))))
+
+;;; relational interpreter
+
+(define fail (== #f #t))
+
+(define eval-expo
+  (lambda (exp env val)
+    (conde
+      ((exist (n)
+         (== `(intc ,n) exp)
+         (== val n)))
+      ((== #t (or (nom? exp) (var? exp))) (lookupo2 exp val env))
+      ((exist (rator rand body env^ a res)
+         (fresh (x)
+           (== `(,rator ,rand) exp)
+           (eval-expo rator env `(closure ,(tie x body) ,env^))
+           (eval-expo rand env a)
+           (eval-expo body `((,x . ,a) . ,env^) val))))
+      ((exist (x body)
+         (fresh (x)
+           (== `(lambda ,(tie x body)) exp)
+           (== `(closure ,x ,body ,env) val)))))))
+
+(define t-eval-expo
+  (lambda (exp env val t-env t-val)
+    (conde
+      ((exist (n)
+         (== `(int-exp ,n) exp)
+         (== val n)
+         (== t-val 'int)))
+      ((conde
+         ((== exp #t) (== val #t) (== t-val 'bool))
+         ((== exp #f) (== val #f) (== t-val 'bool))))
+      ((exist (l lt)
+         (== exp `(list ,l))
+         (proper-listo l env val t-env lt)
+         (== t-val 'list)))
+      ((exist (list e)
+         (== exp `(car ,list))
+         (caro list e)
+         (t-eval-expo e env val t-env t-val)))
+      ((exist (list e)
+         (== exp `(cdr ,list))
+         (cdro list e)
+         (proper-listo e env val t-env t-val)))
+      ((exist (x y body exp^ t-y trand)
+         (fresh (a)
+           (== exp `(let (,x . ,y) ,(tie a body)))
+           (replaceo body a y exp^)
+           (t-eval-expo exp^ env val t-env t-val))))
+      ((== #t (or (nom? exp) (var? exp)))
+         (lookupo2 exp val env)
+         (lookupo2 exp t-val t-env))
+      ((exist (e1 e2 e3 e1-val)
+         (== `(if ,e1 ,e2 ,e3) exp)
+         (t-eval-expo e1 env e1-val t-env 'bool)
+         (conde
+          ((== e1-val #t)
+             (t-eval-expo e2 env val t-env t-val)
+             (!- e3 t-env t-val))
+          ((== e1-val #f)
+             (t-eval-expo e3 env val t-env t-val)
+             (!- e2 t-env t-val)))))
+      ((exist (rator rand x trand body env^ rand-val)
+         (fresh (x)
+           (== `(,rator ,rand) exp)
+           (t-eval-expo rator env `(closure ,(tie x body) ,env^) t-env `(-> ,trand ,t-val))
+           (t-eval-expo rand env rand-val t-env trand)
+           (t-eval-expo body `((,x . ,rand-val) . ,env^) val `((,x . ,trand) . ,t-env) t-val))))
+      ((exist (body trand tbody)
+         (fresh (x)
+           (== `(lambda ,(tie x body)) exp)
+           (== `(-> ,trand ,tbody) t-val)
+           (== `(closure ,(tie x body) ,env) val)
+           (!- body `((,x . ,trand) . ,t-env) tbody)))))))
+
+(define proper-listo
+  (lambda (exp env val t-env t-val)
+    (conde
+      ((== '() exp)
+       (== '() val)
+       (== '() t-val))
+      ((exist (a d v-a v-d t-a t-d)
+         (== `(,a . ,d) exp)
+         (== `(,v-a . ,v-d) val)
+         (== `(,t-a . ,t-d) t-val)
+         (t-eval-expo a env v-a t-env t-a)
+         (proper-listo d env v-d t-env t-d))))))
+
+
+(define ext-env*o
+  (lambda (x* a* env out)
+    (conde
+      ((== '() x*) (== '() a*) (== env out))
+      ((exist (x a dx* da* env2)
+         (== `(,x . ,dx*) x*)
+         (== `(,a . ,da*) a*)
+         (== `((,x . ,a) . ,env) env2)
+         (ext-env*o dx* da* env2 out))))))
+
+(define prim-expo
+  (lambda (exp env val)
+    (conde
+      ((boolean-primo exp env val))
+      ((number-primo exp env val))
+      ((*-primo exp env val))
+      ((cons-primo exp env val))
+      ((car-primo exp env val))
+      ((cdr-primo exp env val))
+      ((not-primo exp env val))
+      ((if-primo exp env val)))))
+
+(define boolean-primo
+  (lambda (exp env val)
+    (conde
+      ((== #t exp) (== #t val))
+      ((== #f exp) (== #f val)))))
+
+(define cons-primo
+  (lambda (exp env val)
+    (exist (a d v-a v-d)
+      (== `(cons ,a ,d) exp)
+      (== `(,v-a . ,v-d) val)
+      (eval-expo a env v-a)
+      (eval-expo d env v-d))))
+
+(define car-primo
+  (lambda (exp env val)
+    (exist (p d)
+      (== `(car ,p) exp)
+      (eval-expo p env `(,val . ,d)))))
+
+(define cdr-primo
+  (lambda (exp env val)
+    (exist (p a)
+      (== `(cdr ,p) exp)
+      (eval-expo p env `(,a . ,val)))))
+
+(define not-primo
+  (lambda (exp env val)
+    (exist (e b)
+      (== `(not ,e) exp)
+      (conde
+        ((== #t b) (== #f val))
+        ((== #f b) (== #t val)))
+      (eval-expo e env b))))
+
+(define number-primo
+  (lambda (exp env val)
+    (exist (n)
+      (== `(int-exp ,n) exp)
+      (== `(int-val ,n) val))))
+
+(define *-primo
+  (lambda (exp env val)
+    (exist (e1 e2 n1 n2 n3)
+      (== `(* ,e1 ,e2) exp)
+      (== `(int-val ,n3) val)
+      (eval-expo e1 env `(int-val ,n1))
+      (eval-expo e2 env `(int-val ,n2)))))
+
+(define if-primo
+  (lambda (exp env val)
+    (exist (e1 e2 e3 t)
+      (== `(if ,e1 ,e2 ,e3) exp)
+      (eval-expo e1 env t)
+      (conde
+        ((== #t t) (eval-expo e2 env val))
+        ((== #f t) (eval-expo e3 env val))))))
+
+(define nullo
+  (lambda (x)
+    (== x '())))
+
+(define caro
+  (lambda (p d)
+    (exist (a)
+           (== `(,d . ,a) p))))
+
+(define car-exp
+  (lambda (exp env val t-env t-val)
+    (exist (list e)
+           (== exp `(car ,list))
+           (caro list e)
+           (t-eval-expo e env val t-env t-val))))
+
+(define cdro
+  (lambda (p d)
+    (exist (a)
+           (== (cons a d) p))))
+
+(define cdr-exp
+  (lambda (exp env val t-env t-val)
+    (exist (list e)
+           (== exp `(cdr ,list))
+           (cdro list e)
+           (t-eval-expo e env val t-env t-val))))
+
+(define cons-o
+  (lambda (exp)
+    (exist (a b)
+           (== `(,a . ,b) exp))))
+
+(define replaceo
+  (lambda (exp let-var let-val exp-out)
+    (conde
+     ((== exp let-var)
+      (== exp-out let-val))
+     ((exist (car-exp cdr-exp car-exp-out cdr-exp-out)
+             (== `(,car-exp . ,cdr-exp) exp)
+             (replaceo car-exp let-var let-val car-exp-out)
+             (replaceo cdr-exp let-var let-val cdr-exp-out)
+             (== exp-out `(,car-exp-out . ,cdr-exp-out))))
+     ((fresh (x)
+             (exist (tie-exp tie-exp-out)
+                    (== exp (tie x tie-exp))
+                    (replaceo tie-exp let-var let-val tie-exp-out)
+                    (== exp-out (tie x tie-exp-out)))))
+     ((exist (isList isLetVar isTied)
+             (isList? exp isList)
+             (== isList #f)
+             (isLetVar? exp let-var isLetVar)
+             (== isLetVar #f)
+             (isTied? exp isTied)
+             (== isTied #f)
+             (== exp exp-out))))))
+
+(define replaceo-before
+  (lambda (exp let-var let-val exp-out)
+    (conde
+     ((== exp let-var)
+      (== exp-out let-val))
+     ((exist (car-exp cdr-exp car-exp-out cdr-exp-out)
+             (== `(,car-exp . ,cdr-exp) exp)
+             (replaceo-before car-exp let-var let-val car-exp-out)
+             (replaceo-before cdr-exp let-var let-val cdr-exp-out)
+             (== exp-out `(,car-exp-out . ,cdr-exp-out))))
+     ((fresh (x)
+             (exist (tie-exp tie-exp-out)
+                    (== exp (tie x tie-exp))
+                    (replaceo-before tie-exp let-var let-val tie-exp-out)
+                    (== exp-out (tie x tie-exp-out)))))
+     ((== exp exp-out)))))
+
+(define isList?
+  (lambda (exp out)
+    (exist (car-exp cdr-exp)
+           (conda
+            ((conde
+             ((== out #t) (== `(,car-exp . ,cdr-exp) exp))))
+            ((== out #f))))))
+
+(define isLetVar?
+  (lambda (exp let-var out)
+    (exist (car-exp cdr-exp)
+           (conda
+            ((conde
+             ((== out #t) (== exp let-var))))
+            ((== out #f))))))
+
+(define isTied?
+  (lambda (exp out)
+    (conda
+     ((conde
+       ((fresh (x)
+               (exist (tie-exp)
+                      (== out #t)
+                      (== exp (tie x tie-exp)))))))
+     ((== out #f)))))
