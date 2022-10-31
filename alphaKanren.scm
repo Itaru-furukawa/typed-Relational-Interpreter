@@ -521,80 +521,13 @@
       ((memq (car s) (cdr s)) (remove-duplicates (cdr s)))
       (else (cons (car s) (remove-duplicates (cdr s)))))))
 
-;; add definition from 3.1 Non-naive Substitution
-
-(define substo
-  (lambda (e new a out)
-    (conde
-     ((== `(var ,a) e) (== new out))
-     ((exist (y)
-              (== `(var ,y) e)
-              (== `(var ,y) out)
-              (hash a y)))
-     ((exist (rator ratorres rand randres)
-             (== `(app ,rator ,rand) e)
-             (== `(app ,ratorres ,randres) out)
-             (substo rator new a ratorres)
-             (substo rand new a randres)))
-     ((exist (body bodyres)
-             (fresh (c)
-                    (== `(lam ,(tie c body)) e)
-                    (== `(lam ,(tie c bodyres)) out)
-                    (hash c a)
-                    (hash c new)
-                    (substo body new a bodyres)))))))
-
-;; add definition from 3.2 Type Inferencer for Simply Typed λ-calculus
-
-(define typo
-  (lambda (g e te)
-    (conde
-     ((exist (x)
-             (== `(intc ,x) e)
-             (== te 'int)))
-     ((exist (x)
-             (== `(var ,x) e)
-             (lookupo x te g)))
-     ((exist (rator trator rand trand)
-             (== `(app ,rator ,rand) e)
-             (== `(→ ,trand ,te) trator)
-             (typo g rator trator)
-             (typo g rand trand)))
-     ((exist (e^ te^ trand g^)
-             (fresh (b)
-                    (== `(lam ,(tie b e^)) e)
-                    (== `(→ ,trand ,te^) te)
-                    (hash b g)
-                    (== `((,b . ,trand) . ,g) g^)
-                    (typo g^ e^ te^)))))))
-
 (define lookupo
-  (lambda (x tx t-env)
-    (exist (a d)
-           (== `(,a . ,d) t-env)
-           (conde
-            ((== `(,x . ,tx) a))
-            ((exist (x^ tx^)
-                    (== `(,x^ . ,tx^) a)
-                    (hash x x^)
-                    (lookupo x tx d)))))))
-
-(define lookupo2
   (lambda (x xt t-env)
     (exist (y v rest)
            (== `((,y . ,v) . ,rest) t-env)
            (conde
             ((== y x) (== v xt))
-            ((lookupo2 x xt rest))))))
-
-(define lookupo3
-  (lambda (x env t)
-    (exist (y v rest)
-           (== `((,y . ,v) . ,rest) env)
-           (conde
-            ((== '() env) fail)
-            ((== y x) (== v t))
-            ((lookupo3 x rest t))))))
+            ((lookupo x xt rest))))))
 
 ;; Type inferencer
 
@@ -618,7 +551,7 @@
                     (!- `((lambda ,(tie a body)) ,y) t-env t-val))))
      ((exist (x)
              (== #t (or (var? exp) (nom? exp)))
-             (lookupo2 exp t-val t-env)))
+             (lookupo exp t-val t-env)))
      ((exist (e1 e2 e3)
              (== `(if ,e1 ,e2 ,e3) exp)
              (!- e1 t-env 'bool)
@@ -644,7 +577,7 @@
       ((exist (n)
          (== `(intc ,n) exp)
          (== val n)))
-      ((== #t (or (nom? exp) (var? exp))) (lookupo2 exp val env))
+      ((== #t (or (nom? exp) (var? exp))) (lookupo exp val env))
       ((exist (rator rand body env^ a res)
          (fresh (x)
            (== `(,rator ,rand) exp)
@@ -681,11 +614,11 @@
       ((exist (x y body exp^ t-y trand)
          (fresh (a)
            (== exp `(let (,x . ,y) ,(tie a body)))
-           (replaceo-new body `((,a . ,y)) exp^)
+           (replaceo body `((,a . ,y)) exp^)
            (t-eval-expo exp^ env val t-env t-val))))
       ((== #t (or (nom? exp) (var? exp)))
-         (lookupo2 exp val env)
-         (lookupo2 exp t-val t-env))
+         (lookupo exp val env)
+         (lookupo exp t-val t-env))
       ((exist (e1 e2 e3 e1-val)
          (== `(if ,e1 ,e2 ,e3) exp)
          (t-eval-expo e1 env e1-val t-env 'bool)
@@ -722,87 +655,6 @@
          (t-eval-expo a env v-a t-env t-a)
          (proper-listo d env v-d t-env t-d))))))
 
-
-(define ext-env*o
-  (lambda (x* a* env out)
-    (conde
-      ((== '() x*) (== '() a*) (== env out))
-      ((exist (x a dx* da* env2)
-         (== `(,x . ,dx*) x*)
-         (== `(,a . ,da*) a*)
-         (== `((,x . ,a) . ,env) env2)
-         (ext-env*o dx* da* env2 out))))))
-
-(define prim-expo
-  (lambda (exp env val)
-    (conde
-      ((boolean-primo exp env val))
-      ((number-primo exp env val))
-      ((*-primo exp env val))
-      ((cons-primo exp env val))
-      ((car-primo exp env val))
-      ((cdr-primo exp env val))
-      ((not-primo exp env val))
-      ((if-primo exp env val)))))
-
-(define boolean-primo
-  (lambda (exp env val)
-    (conde
-      ((== #t exp) (== #t val))
-      ((== #f exp) (== #f val)))))
-
-(define cons-primo
-  (lambda (exp env val)
-    (exist (a d v-a v-d)
-      (== `(cons ,a ,d) exp)
-      (== `(,v-a . ,v-d) val)
-      (eval-expo a env v-a)
-      (eval-expo d env v-d))))
-
-(define car-primo
-  (lambda (exp env val)
-    (exist (p d)
-      (== `(car ,p) exp)
-      (eval-expo p env `(,val . ,d)))))
-
-(define cdr-primo
-  (lambda (exp env val)
-    (exist (p a)
-      (== `(cdr ,p) exp)
-      (eval-expo p env `(,a . ,val)))))
-
-(define not-primo
-  (lambda (exp env val)
-    (exist (e b)
-      (== `(not ,e) exp)
-      (conde
-        ((== #t b) (== #f val))
-        ((== #f b) (== #t val)))
-      (eval-expo e env b))))
-
-(define number-primo
-  (lambda (exp env val)
-    (exist (n)
-      (== `(int-exp ,n) exp)
-      (== `(int-val ,n) val))))
-
-(define *-primo
-  (lambda (exp env val)
-    (exist (e1 e2 n1 n2 n3)
-      (== `(* ,e1 ,e2) exp)
-      (== `(int-val ,n3) val)
-      (eval-expo e1 env `(int-val ,n1))
-      (eval-expo e2 env `(int-val ,n2)))))
-
-(define if-primo
-  (lambda (exp env val)
-    (exist (e1 e2 e3 t)
-      (== `(if ,e1 ,e2 ,e3) exp)
-      (eval-expo e1 env t)
-      (conde
-        ((== #t t) (eval-expo e2 env val))
-        ((== #f t) (eval-expo e3 env val))))))
-
 (define nullo
   (lambda (x)
     (== x '())))
@@ -836,28 +688,6 @@
     (exist (a b)
            (== `(,a . ,b) exp))))
 
-(define list-replaceo
-  (lambda (exp let-var let-val exp-out)
-    (conde
-     ((exist (car-exp cdr-exp car-exp-out cdr-exp-out)
-             (== `(,car-exp . ,cdr-exp) exp)
-             (list-replaceo car-exp let-var let-val car-exp-out)
-             (list-replaceo cdr-exp let-var let-val cdr-exp-out)
-             (== exp-out `(,car-exp-out . ,cdr-exp-out))))
-     ((fresh (x)
-             (exist (tie-exp tie-exp-out)
-                    (== exp (tie x tie-exp))
-                    (list-replaceo tie-exp let-var let-val tie-exp-out)
-                    (== exp-out (tie x tie-exp-out)))))
-     ((exist (isList isLetVar isTied)
-             (isList? exp isList)
-             (== isList #f)
-             (isLetVar? exp let-var isLetVar)
-             (== isLetVar #f)
-             (isTied? exp isTied)
-             (== isTied #f)
-             (== exp exp-out))))))
-
 (define proper-list-replaceo
   (lambda (exp env exp-out)
     (conde
@@ -865,53 +695,10 @@
       ((exist (a d a-out d-out)
          (== `(,a . ,d) exp)
          (== `(,a-out . ,d-out) exp-out)
-         (replaceo-new a env a-out)
+         (replaceo a env a-out)
          (proper-list-replaceo d env d-out))))))
 
-(define replaceo-before
-  (lambda (exp let-var let-val exp-out)
-    (conde
-     ((== exp let-var)
-      (== exp-out let-val))
-     ((exist (car-exp cdr-exp car-exp-out cdr-exp-out)
-             (== `(,car-exp . ,cdr-exp) exp)
-             (replaceo-before car-exp let-var let-val car-exp-out)
-             (replaceo-before cdr-exp let-var let-val cdr-exp-out)
-             (== exp-out `(,car-exp-out . ,cdr-exp-out))))
-     ((fresh (x)
-             (exist (tie-exp tie-exp-out)
-                    (== exp (tie x tie-exp))
-                    (replaceo-before tie-exp let-var let-val tie-exp-out)
-                    (== exp-out (tie x tie-exp-out)))))
-     ((== exp exp-out)))))
-
-(define isList?
-  (lambda (exp out)
-    (exist (car-exp cdr-exp)
-           (conda
-            ((conde
-             ((== out #t) (== `(,car-exp . ,cdr-exp) exp))))
-            ((== out #f))))))
-
-(define isLetVar?
-  (lambda (exp let-var out)
-    (exist (car-exp cdr-exp)
-           (conda
-            ((conde
-             ((== out #t) (== exp let-var))))
-            ((== out #f))))))
-
-(define isTied?
-  (lambda (exp out)
-    (conda
-     ((conde
-       ((fresh (x)
-               (exist (tie-exp)
-                      (== out #t)
-                      (== exp (tie x tie-exp)))))))
-     ((== out #f)))))
-
-(define replaceo-new
+(define replaceo
   (lambda (exp env exp-out)
     (conde
       ((exist (n)
@@ -927,38 +714,38 @@
       ((exist (l e e-out)
          (== exp `(car (list ,l)))
          (caro l e)
-         (replaceo-new e env e-out)
+         (replaceo e env e-out)
          (== `(car (list ,e-out)) exp-out)))
       ((exist (l e e-out)
          (== exp `(cdr (list ,l)))
          (cdro l e)
-         (replaceo-new e env e-out)
+         (replaceo e env e-out)
          (== `(cdr (list ,e-out)) exp-out)))
       ((exist (x y body body-out y-out)
          (fresh (a)
            (== exp `(let (,x . ,y) ,(tie a body)))
-           (replaceo-new y env y-out)
-           (replaceo-new body `((,a . ,y-out) . ,env) body-out)
+           (replaceo y env y-out)
+           (replaceo body `((,a . ,y-out) . ,env) body-out)
            (== body-out exp-out))))
       ((== #t (or (nom? exp) (var? exp)))
-       (lookupo2 exp exp-out env))
+       (lookupo exp exp-out env))
       ((exist (e1 e1-out e2 e2-out e3 e3-out) ;; to-do e2とe3の型が等しいことをチェックしたほうがいいかも
          (== `(if ,e1 ,e2 ,e3) exp)
-         (replaceo-new e1 env e1-out)
-         (replaceo-new e2 env e2-out)
-         (replaceo-new e3 env e3-out)
+         (replaceo e1 env e1-out)
+         (replaceo e2 env e2-out)
+         (replaceo e3 env e3-out)
          (== `(if ,e1-out ,e2-out ,e3-out) exp-out)))
       ((exist (rator rator-out rand rand-out x body)
          (fresh (x)
            (== `(,rator ,rand) exp)
            (== rator-out `(lambda ,(tie x body)))
-           (replaceo-new rator env rator-out)
-           (replaceo-new rand env rand-out)
+           (replaceo rator env rator-out)
+           (replaceo rand env rand-out)
            (== `(,rator-out ,rand-out) exp-out))))
       ((exist (body body-out)
          (fresh (x)
            (== `(lambda ,(tie x body)) exp)
-           (replaceo-new body `((,x . ,x) . ,env) body-out)
+           (replaceo body `((,x . ,x) . ,env) body-out)
            (== `(lambda ,(tie x body-out)) exp-out)))))))
 
 (define fmt
