@@ -1,2 +1,4 @@
 \#alphaKanren.scm#
 alphaKanren.scm~
+.#*
+typedRelationalInterpreterTests.scm~
