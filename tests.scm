@@ -21,7 +21,7 @@
 
 (test "3"
   (run 1 (y)
-    (exist (x z) 
+    (exist (x z)
       (== x z)
       (== 3 y)))
  '(3))
@@ -64,7 +64,7 @@
       ((loop)))))
  '(#f #t #f #t #f))
 
-(define anyo 
+(define anyo
   (lambda (g)
     (conde
       (g)
@@ -79,7 +79,7 @@
 
 (test "10"
  (run 10 (q)
-   (anyo 
+   (anyo
     (conde
       ((== 1 q))
       ((== 2 q))
@@ -180,7 +180,7 @@
  (run* (k)
   (exist (t)
     (fresh (a)
-      (hash a k) 
+      (hash a k)
       (== `(5 ,(tie a a) ,t) k))))
  '(((5 (tie-tag a.0 a.0) _.0) : ((a.0 . _.0)))))
 
@@ -188,7 +188,7 @@
  (run* (k)
   (exist (t)
     (fresh (a)
-      (hash a k) 
+      (hash a k)
       (== `(5 ,(tie a a) ,t) k)
       (== `(foo ,a 7) t))))
  '())
@@ -197,7 +197,7 @@
  (run* (k)
   (exist (t)
     (fresh (a b)
-      (== (tie a (tie b t)) k) 
+      (== (tie a (tie b t)) k)
       (hash a t)
       (== `((,a ,b) ,b) t))))
  '())
@@ -206,7 +206,7 @@
  (run* (k)
   (exist (t)
     (fresh (a b)
-      (== (tie a (tie b t)) k) 
+      (== (tie a (tie b t)) k)
       (hash a t)
       (== `(,b ,(tie a `(,a (,b ,b)))) t))))
  '((tie-tag a.0 (tie-tag a.1 (a.1 (tie-tag a.0 (a.0 (a.1 a.1))))))))
@@ -215,7 +215,7 @@
  (run* (q)
   (exist (k1 k2 t u)
     (fresh (a b c d)
-      (== (tie a (tie b t)) k1) 
+      (== (tie a (tie b t)) k1)
       (hash a t)
       (== (tie c (tie d u)) k2)
       (hash c u)
@@ -225,12 +225,12 @@
     (tie-tag a.3 (tie-tag a.2 _.0)))
    :
    ((a.3 . _.0) (a.1 . _.0) (a.0 . _.0)))))
- 
+
 (test "32"
  (run* (q)
   (exist (k1 k2 t u)
     (fresh (a b c d)
-      (== (tie a (tie b t)) k1) 
+      (== (tie a (tie b t)) k1)
       (hash a t)
       (== `(,b ,b) t)
       (== (tie c (tie d u)) k2)
@@ -249,7 +249,7 @@
        (== `(,x ,y) q))))
  '((((susp-tag ((a.0 a.1)) _.0) _.0) : ((a.0 . _.0)))))
 
-(test "34" 
+(test "34"
  (run* (q)
   (fresh (a b)
     (exist (x y)
@@ -554,7 +554,7 @@
        (== `(lam ,(tie c `(lam ,(tie d `(lam ,(tie e E)))))) B^)
        (hash x B^)
        (hash y B^)
-       (hash z B^)       
+       (hash z B^)
        (stepso `(app (app (app ,B^ (var ,x)) (var ,y)) (var ,z))
                `(app (var ,y) (app (var ,x) (var ,z)))))))
  '((lam

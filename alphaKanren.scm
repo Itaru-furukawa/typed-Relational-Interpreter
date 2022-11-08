@@ -550,7 +550,7 @@
       ((exist (list e)
          (== exp `(cdr (list ,list)))
          (cdro list e)
-         (!- e t-val 'list)))
+         (!- e t-env t-val)))
       ((exist (x y body exp^)
          (fresh (a)
            (== exp `(let (,x . ,y) ,(tie a body)))
@@ -573,6 +573,212 @@
              (!- rator t-env `(,trand -> ,t-val))
              (!- rand t-env trand))))))
 
+;;; relational number
+
+(define >1o
+  (lambda (n)
+    (exist (a ad dd)
+      (== `(,a ,ad . ,dd) n))))
+
+(define full-addero
+  (lambda (b x y r c)
+    (conde
+      ((== 0 b) (== 0 x) (== 0 y) (== 0 r) (== 0 c))
+      ((== 1 b) (== 0 x) (== 0 y) (== 1 r) (== 0 c))
+      ((== 0 b) (== 1 x) (== 0 y) (== 1 r) (== 0 c))
+      ((== 1 b) (== 1 x) (== 0 y) (== 0 r) (== 1 c))
+      ((== 0 b) (== 0 x) (== 1 y) (== 1 r) (== 0 c))
+      ((== 1 b) (== 0 x) (== 1 y) (== 0 r) (== 1 c))
+      ((== 0 b) (== 1 x) (== 1 y) (== 0 r) (== 1 c))
+      ((== 1 b) (== 1 x) (== 1 y) (== 1 r) (== 1 c)))))
+
+(define zeroo
+  (lambda (n)
+    (== '() n)))
+
+(define poso
+  (lambda (n)
+    (exist (a d)
+      (== `(,a . ,d) n))))
+
+(define build-num
+  (lambda (n)
+    (cond
+      ((odd? n)
+       (cons 1
+         (build-num (div (- n 1) 2))))
+      ((and (not (zero? n)) (even? n))
+       (cons 0
+         (build-num (div n 2))))
+      ((zero? n) '()))))
+
+(define addero
+  (lambda (d n m r)
+    (conde
+      ((== 0 d) (== '() m) (== n r))
+      ((== 0 d) (== '() n) (== m r)
+       (poso m))
+      ((== 1 d) (== '() m)
+       (addero 0 n '(1) r))
+      ((== 1 d) (== '() n) (poso m)
+       (addero 0 '(1) m r))
+      ((== '(1) n) (== '(1) m)
+       (exist (a c)
+         (== `(,a ,c) r)
+         (full-addero d 1 1 a c)))
+      ((== '(1) n) (gen-addero d n m r))
+      ((== '(1) m) (>1o n) (>1o r)
+       (addero d '(1) n r))
+      ((>1o n) (gen-addero d n m r)))))
+
+(define gen-addero
+  (lambda (d n m r)
+    (exist (a b c e x y z)
+      (== `(,a . ,x) n)
+      (== `(,b . ,y) m) (poso y)
+      (== `(,c . ,z) r) (poso z)
+      (full-addero d a b c e)
+      (addero e x y z))))
+
+(define pluso
+  (lambda (n m k)
+    (addero 0 n m k)))
+
+(define minuso
+  (lambda (n m k)
+    (pluso m k n)))
+
+(define *o
+  (lambda (n m p)
+    (conde
+      ((== '() n) (== '() p))
+      ((poso n) (== '() m) (== '() p))
+      ((== '(1) n) (poso m) (== m p))
+      ((>1o n) (== '(1) m) (== n p))
+      ((exist (x z)
+         (== `(0 . ,x) n) (poso x)
+         (== `(0 . ,z) p) (poso z)
+         (>1o m)
+         (*o x m z)))
+      ((exist (x y)
+         (== `(1 . ,x) n) (poso x)
+         (== `(0 . ,y) m) (poso y)
+         (*o m n p)))
+      ((exist (x y)
+         (== `(1 . ,x) n) (poso x)
+         (== `(1 . ,y) m) (poso y)
+         (odd-*o x n m p))))))
+
+(define odd-*o
+  (lambda (x n m p)
+    (exist (q)
+      (bound-*o q p n m)
+      (*o x m q)
+      (pluso `(0 . ,q) m p))))
+
+(define bound-*o
+  (lambda (q p n m)
+    (conde
+      ((== '() q) (poso p))
+      ((exist (a0 a1 a2 a3 x y z)
+         (== `(,a0 . ,x) q)
+         (== `(,a1 . ,y) p)
+         (conde
+           ((== '() n)
+            (== `(,a2 . ,z) m)
+            (bound-*o x y z '()))
+           ((== `(,a3 . ,z) n) 
+            (bound-*o x y z m))))))))
+
+(define =lo
+  (lambda (n m)
+    (conde
+      ((== '() n) (== '() m))
+      ((== '(1) n) (== '(1) m))
+      ((exist (a x b y)
+         (== `(,a . ,x) n) (poso x)
+         (== `(,b . ,y) m) (poso y)
+         (=lo x y))))))
+
+(define <lo
+  (lambda (n m)
+    (conde
+      ((== '() n) (poso m))
+      ((== '(1) n) (>1o m))
+      ((exist (a x b y)
+         (== `(,a . ,x) n) (poso x)
+         (== `(,b . ,y) m) (poso y)
+         (<lo x y))))))
+
+(define <=lo
+  (lambda (n m)
+    (conde
+      ((=lo n m))
+      ((<lo n m)))))
+
+(define <o
+  (lambda (n m)
+    (conde
+      ((<lo n m))
+      ((=lo n m)
+       (exist (x)
+         (poso x)
+         (pluso n x m))))))
+
+(define /o
+  (lambda (n m q r)
+    (conde
+      ((== r n) (== '() q) (<o n m))
+      ((== '(1) q) (=lo n m) (pluso r m n)
+       (<o r m))
+      ((<lo m n)
+       (<o r m)
+       (poso q)
+       (exist (nh nl qh ql qlm qlmr rr rh)
+         (splito n r nl nh)
+         (splito q r ql qh)
+         (conde
+           ((== '() nh)
+            (== '() qh)
+            (minuso nl r qlm)
+            (*o ql m qlm))
+           ((poso nh)
+            (*o ql m qlm)
+            (pluso qlm r qlmr)
+            (minuso qlmr nl rr)
+            (splito rr r '() rh)
+            (/o nh m qh rh))))))))
+
+(define splito
+  (lambda (n r l h)
+    (conde
+      ((== '() n) (== '() h) (== '() l))
+      ((exist (b n^)
+         (== `(0 ,b . ,n^) n)
+         (== '() r)
+         (== `(,b . ,n^) h)
+         (== '() l)))
+      ((exist (n^)
+         (==  `(1 . ,n^) n)
+         (== '() r)
+         (== n^ h)
+         (== '(1) l)))
+      ((exist (b n^ a r^)
+         (== `(0 ,b . ,n^) n)
+         (== `(,a . ,r^) r)
+         (== '() l)
+         (splito `(,b . ,n^) r^ '() h)))
+      ((exist (n^ a r^)
+         (== `(1 . ,n^) n)
+         (== `(,a . ,r^) r)
+         (== '(1) l)
+         (splito n^ r^ '() h)))
+      ((exist (b n^ a r^ l^)
+         (== `(,b . ,n^) n)
+         (== `(,a . ,r^) r)
+         (== `(,b . ,l^) l)
+         (poso l^)
+         (splito n^ r^ l^ h))))))
 
 ;;; relational interpreter
 
@@ -617,11 +823,13 @@
       ((exist (list e)
          (== exp `(cdr (list ,list)))
          (cdro list e)
-         (proper-listo e env val t-env t-val)))
-      ((exist (x y body exp^ t-y trand)
+         (t-eval-expo e env val t-env t-val)))
+      ((exist (x y ytval body exp^ env-vars)
          (fresh (a)
            (== exp `(let (,x . ,y) ,(tie a body)))
-           (replaceo body `((,a . ,y)) exp^)
+           (!- y t-env ytval)
+           (fetch-var env env-vars)
+           (replaceo body `((,a . ,y) . ,env-vars) exp^)
            (t-eval-expo exp^ env val t-env t-val))))
       ((== #t (or (nom? exp) (var? exp)))
          (lookupo exp val env)
@@ -755,6 +963,20 @@
            (replaceo body `((,x . ,x) . ,env) body-out)
            (== `(lambda ,(tie x body-out)) exp-out)))))))
 
+(define fetch-var
+  (lambda (env env-out)
+    (append-env-var env '() env-out)))
+
+(define append-env-var
+  (lambda (env-var1 env-var2 env-out)
+    (conde
+      ((== env-var1 '()) (== env-var2 env-out))
+      ((exist (var val pair rest temp)
+              (== env-var1 `(,pair . ,rest))
+              (append-env-var rest env-var2 temp)
+              (caro pair var)
+              (== `((,var . ,var) . ,temp) env-out))))))
+
 (define fmt
   (lambda (exp)
     (cond
@@ -767,3 +989,22 @@
          ((eq? (car exp) 'let) `(let ,(fmt (cadr exp)) , (fmt (caddr (caddr exp)))))
          (#t `(,(fmt (car exp)) . ,(fmt (cdr exp))))))
       (#t exp))))
+
+(define lambda-exp
+  (lambda (nom body)
+    `(lambda ,(tie nom body))))
+
+(define let-exp
+  (lambda (env body)
+    `(let ,env ,(tie (car env) body))))
+
+(define sample1
+  (lambda ()
+    (run 5 (q)
+       (fresh (x y z)
+              (exist (exp val t-val exp1 exp2 c-exp1 c-exp2 c-exp3 closure-env t1 t2)
+                     (== exp `(lambda ,(tie x `(if ,x ,exp1 ,exp2))))
+                     (== val `(closure ,(tie y `(if ,y (lambda ,(tie z `(if ,z ,c-exp1 ,c-exp2))) ,c-exp3)) ,closure-env))
+                     (== t-val `(,t1 -> (,t2 -> int)))
+                     (t-eval-expo exp '() val '() t-val)
+                     (== q exp))))))
