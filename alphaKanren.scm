@@ -535,25 +535,43 @@
   (lambda (exp t-env t-val)
     (conde
       ((exist (n)
-         (== `(int-exp ,n) exp)
+         (conda
+          ((== `(int-exp ,n) exp))
+          ((== `((int-exp ,n) :: int) exp)))
          (== t-val 'int)))
       ((conde
          ((== exp #t) (== t-val 'bool))
          ((== exp #f) (== t-val 'bool))))
+      ((conde
+         ((conda
+            ((== exp #t))
+            ((== exp '(#t :: bool))))
+          (== t-val 'bool))
+         ((conda
+            ((== exp #f))
+            ((== exp '(#f :: bool))))
+          (== t-val 'bool))))
       ((exist (l lt)
-         (== exp `(list ,l))
+         (conda
+          ((== exp `(list ,l)))
+          ((== exp `((list ,l) :: list))))
          (== t-val 'list)))
       ((exist (list e)
-         (== exp `(car (list ,list)))
+         (conda
+          ((== exp `(car (list ,list))))
+          ((== exp `((car (list ,list)) :: ,t-val))))
          (caro list e)
          (!- e t-env t-val)))
       ((exist (list e)
-         (== exp `(cdr (list ,list)))
+         (conda
+          ((== exp `(cdr (list ,list))))
+          ((== exp `((cdr (list ,list)) :: ,t-val))))
          (cdro list e)
          (!- e t-env t-val)))
-      ((exist (x y body exp^)
+      ((exist (x y ty body exp^)
          (fresh (a)
            (== exp `(let (,x . ,y) ,(tie a body)))
+           (!- y t-env ty)
            (replaceo body `((,a . ,y)) exp^)
            (!- exp^ t-env t-val))))
       ((== #t (or (nom? exp) (var? exp)))
@@ -565,11 +583,15 @@
          (!- e3 t-env t-val)))
       ((exist (body trand tbody)
              (fresh (a)
-                    (== `(lambda ,(tie a body)) exp)
+                    (conda
+                     ((== `(lambda ,(tie a body)) exp))
+                     ((== `((lambda ,(tie a body)) :: (,trand -> ,tbody)) exp)))
                     (== `(,trand -> ,tbody) t-val)
                     (!- body `((,a . ,trand) . ,t-env) tbody))))
       ((exist (rator rand trand)
-             (== `(,rator ,rand) exp)
+             (conda
+              ((== `(,rator ,rand) exp))
+              ((== `((,rator ,rand) :: ,t-val) exp)))
              (!- rator t-env `(,trand -> ,t-val))
              (!- rand t-env trand))))))
 
@@ -806,22 +828,38 @@
   (lambda (exp env val t-env t-val)
     (conde
       ((exist (n)
-         (== `(int-exp ,n) exp)
+         (conda
+           ((== `(int-exp ,n) exp))
+           ((== `((int-exp ,n) :: int) exp)))
          (== val n)
          (== t-val 'int)))
       ((conde
-         ((== exp #t) (== val #t) (== t-val 'bool))
-         ((== exp #f) (== val #f) (== t-val 'bool))))
+         ((conda
+            ((== exp #t))
+            ((== exp '(#t :: bool))))
+          (== val #t)
+          (== t-val 'bool))
+         ((conda
+            ((== exp #f))
+            ((== exp '(#f :: bool))))
+          (== val #f)
+          (== t-val 'bool))))
       ((exist (l lt)
-         (== exp `(list ,l))
+         (conda
+          ((== exp `(list ,l)))
+          ((== exp `((list ,l) :: list))))
          (proper-listo l env val t-env lt)
          (== t-val 'list)))
       ((exist (list e)
-         (== exp `(car (list ,list)))
+         (conda
+          ((== exp `(car (list ,list))))
+          ((== exp `((car (list ,list)) :: ,t-val))))
          (caro list e)
          (t-eval-expo e env val t-env t-val)))
       ((exist (list e)
-         (== exp `(cdr (list ,list)))
+         (conda
+          ((== exp `(cdr (list ,list))))
+          ((== exp `((cdr (list ,list)) :: ,t-val))))
          (cdro list e)
          (t-eval-expo e env val t-env t-val)))
       ((exist (x y ytval body exp^ env-vars)
@@ -846,13 +884,17 @@
              (!- e2 t-env t-val)))))
       ((exist (rator rand x trand body env^ rand-val)
          (fresh (x)
-           (== `(,rator ,rand) exp)
+           (conda
+            ((== `(,rator ,rand) exp))
+            ((== `((,rator ,rand) :: t-val))))
            (t-eval-expo rator env `(closure ,(tie x body) ,env^) t-env `(,trand -> ,t-val))
            (t-eval-expo rand env rand-val t-env trand)
            (t-eval-expo body `((,x . ,rand-val) . ,env^) val `((,x . ,trand) . ,t-env) t-val))))
       ((exist (body trand tbody)
          (fresh (x)
-           (== `(lambda ,(tie x body)) exp)
+           (conda
+            ((== `(lambda ,(tie x body)) exp))
+            ((== `((lambda ,(tie x body)) :: (,trand -> ,tbody)) exp)))
            (== `(,trand -> ,tbody) t-val)
            (== `(closure ,(tie x body) ,env) val)
            (!- body `((,x . ,trand) . ,t-env) tbody)))))))
