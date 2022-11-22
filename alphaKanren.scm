@@ -886,7 +886,7 @@
          (fresh (x)
            (conda
             ((== `(,rator ,rand) exp))
-            ((== `((,rator ,rand) :: t-val))))
+            ((== `((,rator ,rand) :: t-val) exp)))
            (t-eval-expo rator env `(closure ,(tie x body) ,env^) t-env `(,trand -> ,t-val))
            (t-eval-expo rand env rand-val t-env trand)
            (t-eval-expo body `((,x . ,rand-val) . ,env^) val `((,x . ,trand) . ,t-env) t-val))))
@@ -959,22 +959,35 @@
   (lambda (exp env exp-out)
     (conde
       ((exist (n)
-         (== `(int-exp ,n) exp)
+         (conda
+           ((== `(int-exp ,n) exp))
+           ((== `((int-exp ,n) :: int) exp)))
          (== exp exp-out)))
       ((conde
-         ((== exp #t) (== exp exp-out))
-         ((== exp #f) (== exp exp-out))))
+         ((conda
+            ((== exp #t))
+            ((== exp '(#t :: bool)))))
+         ((conda
+            ((== exp #f))
+            ((== exp '(#f :: bool))))))
+       (== exp-out exp))
       ((exist (l l-out)
-         (== exp `(list ,l))
+         (conda
+          ((== exp `(list ,l)))
+          ((== exp `((list ,l) :: list))))
          (proper-list-replaceo l env l-out)
          (== `(list ,l-out) exp-out)))
-      ((exist (l e e-out)
-         (== exp `(car (list ,l)))
+      ((exist (l e e-out t-val)
+         (conda
+          ((== exp `(car (list ,list))))
+          ((== exp `((car (list ,list)) :: ,t-val))))
          (caro l e)
          (replaceo e env e-out)
          (== `(car (list ,e-out)) exp-out)))
-      ((exist (l e e-out)
-         (== exp `(cdr (list ,l)))
+      ((exist (l e e-out t-val)
+         (conda
+          ((== exp `(cdr (list ,list))))
+          ((== exp `((cdr (list ,list)) :: ,t-val))))
          (cdro l e)
          (replaceo e env e-out)
          (== `(cdr (list ,e-out)) exp-out)))
@@ -992,16 +1005,20 @@
          (replaceo e2 env e2-out)
          (replaceo e3 env e3-out)
          (== `(if ,e1-out ,e2-out ,e3-out) exp-out)))
-      ((exist (rator rator-out rand rand-out x body)
+      ((exist (rator rator-out rand rand-out body t-val)
          (fresh (x)
-           (== `(,rator ,rand) exp)
+           (conda
+            ((== `(,rator ,rand) exp))
+            ((== `((,rator ,rand) :: t-val) exp)))
            (== rator-out `(lambda ,(tie x body)))
            (replaceo rator env rator-out)
            (replaceo rand env rand-out)
            (== `(,rator-out ,rand-out) exp-out))))
-      ((exist (body body-out)
+      ((exist (body body-out trand tbody)
          (fresh (x)
-           (== `(lambda ,(tie x body)) exp)
+           (conda
+            ((== `(lambda ,(tie x body)) exp))
+            ((== `((lambda ,(tie x body)) :: (,trand -> ,tbody)) exp)))
            (replaceo body `((,x . ,x) . ,env) body-out)
            (== `(lambda ,(tie x body-out)) exp-out)))))))
 
@@ -1050,3 +1067,43 @@
                      (== t-val `(,t1 -> (,t2 -> int)))
                      (t-eval-expo exp '() val '() t-val)
                      (== q exp))))))
+
+(define typeso
+  (lambda (x nom-list nom-list-out)
+    (conda
+     ((fresh (a)
+        (exist (fresh_var)
+           (== a x)
+           (== nom-list-out `(,a . ,nom-list)))))
+     ((== 'int x) (== nom-list nom-list-out))
+     ((== 'bool x) (== nom-list nom-list-out))
+     ((== 'list x) (== nom-list nom-list-out))
+     ((exist (trand tbody nom-list-out-sub)
+        (== x `(,trand -> ,tbody))
+        (typeso trand nom-list nom-list-out-sub)
+        (typeso tbody nom-list-out-sub nom-list-out)))
+     ((== #t #t) (== nom-list nom-list-out)))))
+
+(define replace-nom-env
+  (lambda (env env-out)
+    (conde
+     ((== env '()) (== env-out '()))
+     ((exist (var nom env-rest env-out-next)
+           (caro env nom)
+           (cdro env env-rest)
+           (replace-nom-env env-rest env-out-next)
+           (== env-out `((,nom . ,var) . ,env-out-next)))))))
+
+(define conso
+  (lambda (a d p)
+    (caro p a)
+    (cdro p d)))
+
+(define appendo
+  (lambda (l t out)
+    (conde
+     ((== l '()) (== t out))
+     ((exist (a d res)
+             (conso a d l)
+             (appendo d t res)
+             (conso a res out))))))
