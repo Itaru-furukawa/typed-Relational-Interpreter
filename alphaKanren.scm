@@ -862,12 +862,16 @@
           ((== exp `((cdr (list ,list)) :: ,t-val))))
          (cdro list e)
          (t-eval-expo e env val t-env t-val)))
-      ((exist (x y ytval body exp^ env-vars)
+      ((exist (x y ytval body exp^ env-vars e e^ nom-list)
          (fresh (a)
            (== exp `(let (,x . ,y) ,(tie a body)))
            (!- y t-env ytval)
+           (conda
+            ((== y `(,e^ :: ,ytval)) (== e y))
+            ((== e `(,y :: ,ytval))))
+           (typeso ytval '() nom-list)
            (fetch-var env env-vars)
-           (replaceo body `((,a . ,y) . ,env-vars) exp^)
+           (replaceo body `((,a . ,e) . ,env-vars) nom-list exp^)
            (t-eval-expo exp^ env val t-env t-val))))
       ((== #t (or (nom? exp) (var? exp)))
          (lookupo exp val env)
@@ -946,17 +950,17 @@
            (== `(,a . ,b) exp))))
 
 (define proper-list-replaceo
-  (lambda (exp env exp-out)
+  (lambda (exp env nom-list-of-type exp-out)
     (conde
       ((== '() exp) (== '() exp-out))
       ((exist (a d a-out d-out)
          (== `(,a . ,d) exp)
          (== `(,a-out . ,d-out) exp-out)
-         (replaceo a env a-out)
-         (proper-list-replaceo d env d-out))))))
+         (replaceo a env nom-list-of-type a-out)
+         (proper-list-replaceo d env nom-list-of-type d-out))))))
 
 (define replaceo
-  (lambda (exp env exp-out)
+  (lambda (exp env nom-list-of-type exp-out)
     (conde
       ((exist (n)
          (conda
@@ -975,51 +979,61 @@
          (conda
           ((== exp `(list ,l)))
           ((== exp `((list ,l) :: list))))
-         (proper-list-replaceo l env l-out)
+         (proper-list-replaceo l env nom-list-of-type l-out)
          (== `(list ,l-out) exp-out)))
       ((exist (l e e-out t-val)
          (conda
           ((== exp `(car (list ,list))))
           ((== exp `((car (list ,list)) :: ,t-val))))
          (caro l e)
-         (replaceo e env e-out)
+         (replaceo e env nom-list-of-type e-out)
          (== `(car (list ,e-out)) exp-out)))
       ((exist (l e e-out t-val)
          (conda
           ((== exp `(cdr (list ,list))))
           ((== exp `((cdr (list ,list)) :: ,t-val))))
          (cdro l e)
-         (replaceo e env e-out)
+         (replaceo e env nom-list-of-type e-out)
          (== `(cdr (list ,e-out)) exp-out)))
       ((exist (x y body body-out y-out)
          (fresh (a)
            (== exp `(let (,x . ,y) ,(tie a body)))
-           (replaceo y env y-out)
-           (replaceo body `((,a . ,y-out) . ,env) body-out)
+           (replaceo y env nom-list-of-type y-out)
+           (replaceo body `((,a . ,y-out) . ,env) nom-list-of-type body-out)
            (== body-out exp-out))))
       ((== #t (or (nom? exp) (var? exp)))
-       (lookupo exp exp-out env))
+       (exist (replaced-exp e t-val)
+         (lookupo exp replaced-exp env)
+         (conda
+          ((== replaced-exp `(,e :: ,t-val))
+           (exist (nom-env replaced-t-val)
+                  (nom-to-var-env nom-list-of-type nom-env)
+                  (replace-typeo t-val nom-env replaced-t-val)
+                  (== exp-out `(,e :: ,replaced-t-val))))
+          ((== replaced-exp exp-out)))))
       ((exist (e1 e1-out e2 e2-out e3 e3-out) ;; to-do e2とe3の型が等しいことをチェックしたほうがいいかも
          (== `(if ,e1 ,e2 ,e3) exp)
-         (replaceo e1 env e1-out)
-         (replaceo e2 env e2-out)
-         (replaceo e3 env e3-out)
+         (replaceo e1 env nom-list-of-type e1-out)
+         (replaceo e2 env nom-list-of-type e2-out)
+         (replaceo e3 env nom-list-of-type e3-out)
          (== `(if ,e1-out ,e2-out ,e3-out) exp-out)))
-      ((exist (rator rator-out rand rand-out body t-val)
+      ((exist (rator rator-out rand rand-out body t-val trand tbody)
          (fresh (x)
            (conda
             ((== `(,rator ,rand) exp))
             ((== `((,rator ,rand) :: t-val) exp)))
-           (== rator-out `(lambda ,(tie x body)))
-           (replaceo rator env rator-out)
-           (replaceo rand env rand-out)
+           (replaceo rator env nom-list-of-type rator-out)
+           (conda
+            ((== rator-out `(lambda ,(tie x body))))
+            ((== rator-out `((lambda ,(tie x body)) :: (,trand -> ,tbody)))))
+           (replaceo rand env nom-list-of-type rand-out)
            (== `(,rator-out ,rand-out) exp-out))))
       ((exist (body body-out trand tbody)
          (fresh (x)
            (conda
             ((== `(lambda ,(tie x body)) exp))
             ((== `((lambda ,(tie x body)) :: (,trand -> ,tbody)) exp)))
-           (replaceo body `((,x . ,x) . ,env) body-out)
+           (replaceo body `((,x . ,x) . ,env) nom-list-of-type body-out)
            (== `(lambda ,(tie x body-out)) exp-out)))))))
 
 (define fetch-var
@@ -1084,15 +1098,28 @@
         (typeso tbody nom-list-out-sub nom-list-out)))
      ((== #t #t) (== nom-list nom-list-out)))))
 
-(define replace-nom-env
-  (lambda (env env-out)
+(define nom-to-var-env
+  (lambda (nom-list env)
     (conde
-     ((== env '()) (== env-out '()))
+     ((== nom-list '()) (== env '()))
      ((exist (var nom env-rest env-out-next)
-           (caro env nom)
-           (cdro env env-rest)
-           (replace-nom-env env-rest env-out-next)
-           (== env-out `((,nom . ,var) . ,env-out-next)))))))
+           (caro nom-list nom)
+           (cdro nom-list env-rest)
+           (nom-to-var-env env-rest env-out-next)
+           (== env `((,nom . ,var) . ,env-out-next)))))))
+
+(define replace-typeo
+  (lambda (exp env exp-out)
+    (conde
+     ((lookupo exp exp-out env))
+     ((== 'int exp) (== exp-out 'int))
+     ((== 'bool exp) (== exp-out 'bool))
+     ((== 'list exp) (== exp-out 'list))
+     ((exist (trand tbody trand-out tbody-out)
+        (== exp `(,trand -> ,tbody))
+        (replace-typeo trand env trand-out)
+        (replace-typeo tbody env tbody-out)
+        (== exp-out `(,trand-out -> ,tbody-out)))))))
 
 (define conso
   (lambda (a d p)
