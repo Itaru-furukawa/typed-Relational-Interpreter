@@ -521,80 +521,6 @@
       ((memq (car s) (cdr s)) (remove-duplicates (cdr s)))
       (else (cons (car s) (remove-duplicates (cdr s)))))))
 
-;; Type inferencer
-
-(define lookupo
-  (lambda (x xt t-env)
-    (exist (y v rest)
-           (== `((,y . ,v) . ,rest) t-env)
-           (conde
-            ((== y x) (== v xt))
-            ((lookupo x xt rest))))))
-
-(define !-
-  (lambda (exp t-env t-val)
-    (conde
-      ((exist (n)
-         (conda
-          ((== `(int-exp ,n) exp))
-          ((== `((int-exp ,n) :: int) exp)))
-         (== t-val 'int)))
-      ((conde
-         ((== exp #t) (== t-val 'bool))
-         ((== exp #f) (== t-val 'bool))))
-      ((conde
-         ((conda
-            ((== exp #t))
-            ((== exp '(#t :: bool))))
-          (== t-val 'bool))
-         ((conda
-            ((== exp #f))
-            ((== exp '(#f :: bool))))
-          (== t-val 'bool))))
-      ((exist (l lt)
-         (conda
-          ((== exp `(list ,l)))
-          ((== exp `((list ,l) :: list))))
-         (== t-val 'list)))
-      ((exist (list e)
-         (conda
-          ((== exp `(car (list ,list))))
-          ((== exp `((car (list ,list)) :: ,t-val))))
-         (caro list e)
-         (!- e t-env t-val)))
-      ((exist (list e)
-         (conda
-          ((== exp `(cdr (list ,list))))
-          ((== exp `((cdr (list ,list)) :: ,t-val))))
-         (cdro list e)
-         (!- e t-env t-val)))
-      ((exist (x y ty body exp^)
-         (fresh (a)
-           (== exp `(let (,x . ,y) ,(tie a body)))
-           (!- y t-env ty)
-           (replaceo body `((,a . ,y)) exp^)
-           (!- exp^ t-env t-val))))
-      ((== #t (or (nom? exp) (var? exp)))
-         (lookupo exp t-val t-env))
-      ((exist (e1 e2 e3)
-         (== `(if ,e1 ,e2 ,e3) exp)
-         (!- e1 t-env 'bool)
-         (!- e2 t-env t-val)
-         (!- e3 t-env t-val)))
-      ((exist (body trand tbody)
-             (fresh (a)
-                    (conda
-                     ((== `(lambda ,(tie a body)) exp))
-                     ((== `((lambda ,(tie a body)) :: (,trand -> ,tbody)) exp)))
-                    (== `(,trand -> ,tbody) t-val)
-                    (!- body `((,a . ,trand) . ,t-env) tbody))))
-      ((exist (rator rand trand)
-             (conda
-              ((== `(,rator ,rand) exp))
-              ((== `((,rator ,rand) :: ,t-val) exp)))
-             (!- rator t-env `(,trand -> ,t-val))
-             (!- rand t-env trand))))))
-
 ;;; relational number
 
 (define >1o
@@ -801,6 +727,82 @@
          (== `(,b . ,l^) l)
          (poso l^)
          (splito n^ r^ l^ h))))))
+
+;; Type inferencer
+
+(define lookupo
+  (lambda (x xt t-env)
+    (exist (y v rest)
+           (== `((,y . ,v) . ,rest) t-env)
+           (conde
+            ((== y x) (== v xt))
+            ((lookupo x xt rest))))))
+
+(define !-
+  (lambda (exp t-env t-val)
+    (conde
+      ((exist (n)
+         (conda
+          ((== `(int-exp ,n) exp))
+          ((== `((int-exp ,n) :: int) exp)))
+         (== t-val 'int)))
+      ((conde
+         ((conda
+            ((== exp #t))
+            ((== exp '(#t :: bool))))
+          (== t-val 'bool))
+         ((conda
+            ((== exp #f))
+            ((== exp '(#f :: bool))))
+          (== t-val 'bool))))
+      ((exist (l lt)
+         (conda
+          ((== exp `(list ,l)))
+          ((== exp `((list ,l) :: list))))
+         (== t-val 'list)))
+      ((exist (list e)
+         (conda
+          ((== exp `(car (list ,list))))
+          ((== exp `((car (list ,list)) :: ,t-val))))
+         (caro list e)
+         (!- e t-env t-val)))
+      ((exist (list e)
+         (conda
+          ((== exp `(cdr (list ,list))))
+          ((== exp `((cdr (list ,list)) :: ,t-val))))
+         (cdro list e)
+         (!- e t-env t-val)))
+      ((exist (x y ytval body exp^ env-vars e e^ nom-list)
+         (fresh (a)
+           (== exp `(let (,x . ,y) ,(tie a body)))
+           (!- y t-env ytval)
+           (conda
+            ((== y `(,e^ :: ,ytval)) (== e y))
+            ((== e `(,y :: ,ytval))))
+           (typeso ytval '() nom-list)
+           (fetch-var t-env env-vars)
+           (replaceo body `((,a . ,e) . ,env-vars) nom-list exp^)
+           (!- exp^ t-env t-val))))
+      ((== #t (or (nom? exp) (var? exp)))
+         (lookupo exp t-val t-env))
+      ((exist (e1 e2 e3)
+         (== `(if ,e1 ,e2 ,e3) exp)
+         (!- e1 t-env 'bool)
+         (!- e2 t-env t-val)
+         (!- e3 t-env t-val)))
+      ((exist (body trand tbody)
+             (fresh (a)
+                    (conda
+                     ((== `(lambda ,(tie a body)) exp))
+                     ((== `((lambda ,(tie a body)) :: (,trand -> ,tbody)) exp)))
+                    (== `(,trand -> ,tbody) t-val)
+                    (!- body `((,a . ,trand) . ,t-env) tbody))))
+      ((exist (rator rand trand)
+             (conda
+              ((== `(,rator ,rand) exp))
+              ((== `((,rator ,rand) :: ,t-val) exp)))
+             (!- rator t-env `(,trand -> ,t-val))
+             (!- rand t-env trand))))))
 
 ;;; relational interpreter
 
