@@ -892,7 +892,7 @@
          (fresh (x)
            (conda
             ((== `(,rator ,rand) exp))
-            ((== `((,rator ,rand) :: t-val) exp)))
+            ((== `((,rator ,rand) :: ,t-val) exp)))
            (t-eval-expo rator env `(closure ,(tie x body) ,env^) t-env `(,trand -> ,t-val))
            (t-eval-expo rand env rand-val t-env trand)
            (t-eval-expo body `((,x . ,rand-val) . ,env^) val `((,x . ,trand) . ,t-env) t-val))))
@@ -1001,16 +1001,19 @@
          (fresh (a)
            (== exp `(let (,x . ,y) ,(tie a body)))
            (replaceo y env nom-list-of-type y-out)
-           (replaceo body `((,a . ,y-out) . ,env) nom-list-of-type body-out)
-           (== body-out exp-out))))
-      ((== #t (or (nom? exp) (var? exp)))
-       (exist (replaced-exp e t-val)
-         (lookupo exp replaced-exp env)
+           (replaceo body `((,a . ,a) . ,env) nom-list-of-type body-out)
+           (== exp-out `(let (,x . ,y-out) ,(tie a body-out))))))
+      ((exist (t-exp t replaced-exp e t-val)
+         (conda
+          ((== exp `(,t-exp :: ,t)) (== #t (or (nom? t-exp) (var? t-exp))))
+          ((== #t (or (nom? exp) (var? exp))) (== exp t-exp)))
+         (lookupo t-exp replaced-exp env)
          (conda
           ((== replaced-exp `(,e :: ,t-val))
            (exist (nom-env replaced-t-val)
                   (nom-to-var-env nom-list-of-type nom-env)
                   (replace-typeo t-val nom-env replaced-t-val)
+                  (== replaced-t-val t)
                   (== exp-out `(,e :: ,replaced-t-val))))
           ((== replaced-exp exp-out)))))
       ((exist (e1 e1-out e2 e2-out e3 e3-out) ;; to-do e2とe3の型が等しいことをチェックしたほうがいいかも
@@ -1023,11 +1026,8 @@
          (fresh (x)
            (conda
             ((== `(,rator ,rand) exp))
-            ((== `((,rator ,rand) :: t-val) exp)))
+            ((== `((,rator ,rand) :: ,t-val) exp)))
            (replaceo rator env nom-list-of-type rator-out)
-           (conda
-            ((== rator-out `(lambda ,(tie x body))))
-            ((== rator-out `((lambda ,(tie x body)) :: (,trand -> ,tbody)))))
            (replaceo rand env nom-list-of-type rand-out)
            (== `(,rator-out ,rand-out) exp-out))))
       ((exist (body body-out trand tbody)
